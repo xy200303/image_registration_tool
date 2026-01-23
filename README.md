@@ -1,6 +1,8 @@
 # 图像配准工具 - 使用说明
 
 ## 项目概述
+<img width="1500" height="929" alt="image" src="https://github.com/user-attachments/assets/3fcc974f-7e4d-4152-a92d-fe18eedbd2c5" />
+<img width="1919" height="1019" alt="image" src="https://github.com/user-attachments/assets/e7bd1275-e829-465e-8e0b-a3e66f342dce" />
 
 这是一个基于 PyQt6 的图像配准工具，用于红外图像和可见光图像的手动配准和批量处理。
 

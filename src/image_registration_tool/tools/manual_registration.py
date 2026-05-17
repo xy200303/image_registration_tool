@@ -4,6 +4,8 @@ from pathlib import Path
 
 import cv2
 
+from ..io import read_image, write_image
+
 
 class InteractiveRegistration:
     def __init__(
@@ -187,8 +189,8 @@ def run_batch_registration(
             print(f"可见光图像不存在: {vis_file}, 跳过")
             continue
 
-        ir_img = cv2.imread(str(ir_file))
-        vis_img = cv2.imread(str(vis_file))
+        ir_img = read_image(ir_file)
+        vis_img = read_image(vis_file)
 
         if ir_img is None or vis_img is None:
             print(f"无法读取图像: {file_name}")
@@ -215,7 +217,9 @@ def run_batch_registration(
             continue
 
         output_file = output_dir / file_name
-        cv2.imwrite(str(output_file), registered_img)
+        if not write_image(output_file, registered_img):
+            print(f"保存失败: {output_file}")
+            continue
 
         global_dx = dx
         global_dy = dy

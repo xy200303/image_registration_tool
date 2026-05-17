@@ -6,6 +6,7 @@
 
 - PyQt6 图形界面，支持人工调节红外/可见光图像配准
 - 支持当前图像一键自动优化 `dx / dy / scale_x / scale_y`
+- 支持整目录批量自动优化并保存参数
 - 内置统一 CLI，可运行配准、尺寸对齐和数据集拆分
 - 使用 `src/` 包结构，便于维护、安装和后续扩展
 
@@ -79,6 +80,8 @@ image-registration-tool split-data
 - 基于 SciPy 对 `dx / dy / scale_x / scale_y` 继续精修
 - 自动刷新预览并将结果写入 `results/` 参数文件
 
+点击 `批量自动优化` 按钮后，程序会按目录逐张处理，并优先复用已有参数或上一张优化结果作为下一张的初始值。
+
 ## 默认目录约定
 
 默认使用当前工作目录下的这些目录：
@@ -89,6 +92,12 @@ image-registration-tool split-data
 - `imagesIR_registered/`：手动配准后的红外图像
 - `images_aligned/`：按红外尺寸对齐后的可见光图像
 - `outputs/`：数据集拆分输出目录
+
+## 路径兼容
+
+- Windows 下直接使用 `cv2.imread` / `cv2.imwrite` 处理中文路径时，常会出现读取或导出失败
+- 本项目已经统一改为 `cv2.imdecode` / `cv2.imencode` 方案，兼容中文路径和当前这类中文项目目录
+- 如果你后续新增图像读写代码，建议继续复用项目内的 [src/image_registration_tool/io.py](</c:/Users/34834/Desktop/projectM/python/图像配准工具/src/image_registration_tool/io.py:1>)
 
 ## 开发与打包
 

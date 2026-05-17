@@ -10,6 +10,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
 from PyQt6.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt6.QtGui import QImage, QPixmap, QPainter, QColor, QFont, QKeyEvent, QMouseEvent
 
+from .io import read_image, write_image
+
 
 class ImageCanvas(QWidget):
     parameters_changed = pyqtSignal(int, int, float, float, float)
@@ -472,47 +474,88 @@ class ImageRegistrationWindow(QMainWindow):
             
     def load_current_images(self):
         if self.ir_files and self.current_index < len(self.ir_files):
-            ir_img = cv2.imread(str(self.ir_files[self.current_index]))
+            ir_img = read_image(self.ir_files[self.current_index])
         else:
             ir_img = None
             
         if self.vis_files and self.current_index < len(self.vis_files):
-            vis_img = cv2.imread(str(self.vis_files[self.current_index]))
+            vis_img = read_image(self.vis_files[self.current_index])
         else:
             vis_img = None
             
         self.image_canvas.set_images(ir_img, vis_img)
         self.load_image_params()
+
+    def get_result_json_path(self, ir_file):
+        return self.result_dir / f"{ir_file.stem}.json"
+
+    def get_visible_file_for_ir(self, ir_file):
+        if self.ir_dir is None or self.vis_dir is None:
+            return None
+
+        rel_path = ir_file.relative_to(self.ir_dir)
+        vis_file = self.vis_dir / rel_path
+        if vis_file.exists():
+            return vis_file
+        return None
+
+    def build_params_dict(self, dx, dy, angle, scale_x, scale_y):
+        return {
+            'dx': int(dx),
+            'dy': int(dy),
+            'angle': float(angle),
+            'scale_x': float(scale_x),
+            'scale_y': float(scale_y)
+        }
+
+    def read_params_for_file(self, ir_file):
+        json_file = self.get_result_json_path(ir_file)
+
+        if not json_file.exists():
+            return None
+
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                params = json.load(f)
+        except Exception as e:
+            print(f"加载参数失败: {e}")
+            return None
+
+        return self.build_params_dict(
+            params.get('dx', 0),
+            params.get('dy', 0),
+            params.get('angle', 0.0),
+            params.get('scale_x', 1.0),
+            params.get('scale_y', 1.0),
+        )
+
+    def write_params_for_file(self, ir_file, dx, dy, angle, scale_x, scale_y):
+        json_file = self.get_result_json_path(ir_file)
+        params = self.build_params_dict(dx, dy, angle, scale_x, scale_y)
+        json_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(params, f, indent=2, ensure_ascii=False)
+        return json_file
         
     def load_image_params(self):
         if not self.ir_files:
             return
         
         current_file = self.ir_files[self.current_index]
-        json_file = self.result_dir / f"{current_file.stem}.json"
-        
-        if json_file.exists():
-            try:
-                with open(json_file, 'r', encoding='utf-8') as f:
-                    params = json.load(f)
-                    dx = params.get('dx', 0)
-                    dy = params.get('dy', 0)
-                    angle = params.get('angle', 0.0)
-                    scale_x = params.get('scale_x', 1.0)
-                    scale_y = params.get('scale_y', 1.0)
-                    
-                    self.dx_spin.setValue(dx)
-                    self.dy_spin.setValue(dy)
-                    self.angle_slider.setValue(int(angle))
-                    self.scale_x_slider.setValue(int(scale_x * 100))
-                    self.scale_y_slider.setValue(int(scale_y * 100))
-                    self.angle_label.setText(f"Angle: {angle:.1f}°")
-                    self.scale_x_label.setText(f"ScaleX: {scale_x:.2f}")
-                    self.scale_y_label.setText(f"ScaleY: {scale_y:.2f}")
-                    
-                    self.info_label.setText(f"已加载参数: dx={dx}, dy={dy}, angle={angle:.1f}°, scale_x={scale_x:.3f}, scale_y={scale_y:.3f}")
-            except Exception as e:
-                print(f"加载参数失败: {e}")
+        params = self.read_params_for_file(current_file)
+
+        if params is not None:
+            dx = params['dx']
+            dy = params['dy']
+            angle = params['angle']
+            scale_x = params['scale_x']
+            scale_y = params['scale_y']
+
+            self.set_parameter_controls(dx, dy, scale_x, scale_y, angle)
+            self.info_label.setText(
+                f"已加载参数: dx={dx}, dy={dy}, angle={angle:.1f}°, "
+                f"scale_x={scale_x:.3f}, scale_y={scale_y:.3f}"
+            )
                 
     def prev_image(self):
         if self.current_index > 0:
@@ -572,6 +615,7 @@ class ImageRegistrationWindow(QMainWindow):
         self.next_btn.setEnabled(self.current_index < max_index - 1 and max_index > 0)
         self.save_btn.setEnabled(len(self.ir_files) > 0)
         self.auto_optimize_btn.setEnabled(has_both_images)
+        self.batch_optimize_btn.setEnabled(has_both_images)
         self.export_btn.setEnabled(has_both_images)
         self.clear_current_btn.setEnabled(len(self.ir_files) > 0)
         self.clear_all_btn.setEnabled(True)
@@ -692,14 +736,10 @@ class ImageRegistrationWindow(QMainWindow):
             dx, dy, scale_x, scale_y, angle, alpha = self.image_canvas.get_parameters()
         self.set_parameter_controls(dx, dy, scale_x, scale_y, angle)
 
-    def auto_optimize_current_image(self):
-        if self.image_canvas.ir_image is None or self.image_canvas.vis_image is None:
-            QMessageBox.warning(self, "警告", "请先加载当前红外和可见光图像")
-            return
-
+    def ensure_optimizer_available(self):
         try:
             from .optimizer import optimize_registration
-        except ImportError as exc:
+        except ImportError:
             QMessageBox.critical(
                 self,
                 "缺少依赖",
@@ -707,6 +747,17 @@ class ImageRegistrationWindow(QMainWindow):
                 "请执行：\n"
                 "python -m pip install scipy==1.11.4",
             )
+            return None
+
+        return optimize_registration
+
+    def auto_optimize_current_image(self):
+        if self.image_canvas.ir_image is None or self.image_canvas.vis_image is None:
+            QMessageBox.warning(self, "警告", "请先加载当前红外和可见光图像")
+            return
+
+        optimize_registration = self.ensure_optimizer_available()
+        if optimize_registration is None:
             return
 
         initial_dx, initial_dy, initial_scale_x, initial_scale_y, angle, _ = self.image_canvas.get_parameters()
@@ -777,25 +828,151 @@ class ImageRegistrationWindow(QMainWindow):
             return
         
         current_file = self.ir_files[self.current_index]
-        json_file = self.result_dir / f"{current_file.stem}.json"
-        
         dx, dy, scale_x, scale_y, angle, alpha = self.image_canvas.get_parameters()
-        
-        params = {
-            'dx': int(dx),
-            'dy': int(dy),
-            'angle': float(angle),
-            'scale_x': float(scale_x),
-            'scale_y': float(scale_y)
-        }
-        
-        json_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(params, f, indent=2, ensure_ascii=False)
+        json_file = self.write_params_for_file(current_file, dx, dy, angle, scale_x, scale_y)
         
         if show_message:
             self.info_label.setText(f"已保存参数: dx={dx}, dy={dy}, angle={angle:.1f}°, scale_x={scale_x:.3f}, scale_y={scale_y:.3f}")
             QMessageBox.information(self, "保存成功", f"参数已保存到: {json_file}")
+
+    def batch_auto_optimize(self):
+        if not self.ir_files or not self.vis_files or self.ir_dir is None or self.vis_dir is None:
+            QMessageBox.warning(self, "警告", "请先加载红外和可见光目录")
+            return
+
+        optimize_registration = self.ensure_optimizer_available()
+        if optimize_registration is None:
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "确认批量自动优化",
+            "将对当前红外目录中的图像逐张执行自动优化，并把结果写入 results 目录。\n\n"
+            "优化会优先使用已保存参数作为初始值；如果没有，则使用当前界面参数，"
+            "并继续沿用上一张优化结果作为下一张的初始值。\n\n"
+            f"共 {len(self.ir_files)} 张图像。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.No:
+            return
+
+        current_file = self.ir_files[self.current_index] if self.ir_files else None
+        current_dx, current_dy, current_scale_x, current_scale_y, current_angle, _ = self.image_canvas.get_parameters()
+        carry_params = self.build_params_dict(
+            current_dx,
+            current_dy,
+            current_angle,
+            current_scale_x,
+            current_scale_y,
+        )
+
+        progress = QProgressDialog("正在准备批量自动优化...", "取消", 0, len(self.ir_files), self)
+        progress.setWindowTitle("批量自动优化")
+        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
+        progress.setMinimumDuration(0)
+        progress.setAutoClose(False)
+        progress.setAutoReset(False)
+        progress.show()
+        QApplication.processEvents()
+
+        success_count = 0
+        fail_count = 0
+        skip_count = 0
+        last_error = None
+
+        for index, ir_file in enumerate(self.ir_files, start=1):
+            if progress.wasCanceled():
+                break
+
+            vis_file = self.get_visible_file_for_ir(ir_file)
+            if vis_file is None:
+                skip_count += 1
+                progress.setValue(index)
+                continue
+
+            ir_img = read_image(ir_file)
+            vis_img = read_image(vis_file)
+            if ir_img is None or vis_img is None:
+                fail_count += 1
+                progress.setValue(index)
+                continue
+
+            file_params = self.read_params_for_file(ir_file)
+            init_params = file_params if file_params is not None else carry_params
+
+            def update_progress(label: str, iteration: int, evaluations: int, *, name=ir_file.name, pos=index) -> None:
+                progress.setLabelText(
+                    f"[{pos}/{len(self.ir_files)}] {name}\n"
+                    f"{label}\n"
+                    f"迭代次数: {iteration} | 目标函数评估: {evaluations}"
+                )
+                QApplication.processEvents()
+
+            try:
+                result = optimize_registration(
+                    ir_img,
+                    vis_img,
+                    initial_dx=init_params['dx'],
+                    initial_dy=init_params['dy'],
+                    initial_scale_x=init_params['scale_x'],
+                    initial_scale_y=init_params['scale_y'],
+                    angle=init_params['angle'],
+                    progress_callback=update_progress,
+                )
+                self.write_params_for_file(
+                    ir_file,
+                    result.dx,
+                    result.dy,
+                    result.angle,
+                    result.scale_x,
+                    result.scale_y,
+                )
+                carry_params = self.build_params_dict(
+                    result.dx,
+                    result.dy,
+                    result.angle,
+                    result.scale_x,
+                    result.scale_y,
+                )
+                success_count += 1
+            except Exception as exc:
+                fail_count += 1
+                last_error = str(exc)
+
+            progress.setValue(index)
+            QApplication.processEvents()
+
+        progress.close()
+
+        if current_file in self.ir_files:
+            self.current_index = self.ir_files.index(current_file)
+            self.load_current_images()
+
+        if progress.wasCanceled():
+            self.info_label.setText(
+                f"批量自动优化已取消：成功 {success_count} 张，失败 {fail_count} 张，跳过 {skip_count} 张"
+            )
+            QMessageBox.information(
+                self,
+                "批量自动优化已取消",
+                f"成功: {success_count} 张\n失败: {fail_count} 张\n跳过: {skip_count} 张",
+            )
+            return
+
+        self.info_label.setText(
+            f"批量自动优化完成：成功 {success_count} 张，失败 {fail_count} 张，跳过 {skip_count} 张"
+        )
+
+        message = (
+            f"成功: {success_count} 张\n"
+            f"失败: {fail_count} 张\n"
+            f"跳过: {skip_count} 张"
+        )
+        if last_error:
+            message += f"\n\n最后一个错误:\n{last_error}"
+
+        QMessageBox.information(self, "批量自动优化完成", message)
         
     def export_images(self):
         if not self.ir_files or not self.vis_files:
@@ -867,8 +1044,8 @@ class ImageRegistrationWindow(QMainWindow):
                 fail_count += 1
                 continue
             
-            ir_img = cv2.imread(str(ir_file))
-            vis_img = cv2.imread(str(vis_file))
+            ir_img = read_image(ir_file)
+            vis_img = read_image(vis_file)
             
             if ir_img is None or vis_img is None:
                 fail_count += 1
@@ -890,10 +1067,10 @@ class ImageRegistrationWindow(QMainWindow):
             registered_img = cv2.warpAffine(ir_img, M_scale, (w, h))
             
             output_file = export_path / rel_path
-            output_file.parent.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(str(output_file), registered_img)
-            
-            success_count += 1
+            if write_image(output_file, registered_img):
+                success_count += 1
+            else:
+                fail_count += 1
         
         progress.setValue(len(self.ir_files))
         progress.close()

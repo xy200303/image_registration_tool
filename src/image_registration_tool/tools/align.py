@@ -4,6 +4,8 @@ from pathlib import Path
 
 import cv2
 
+from ..io import read_image, write_image
+
 
 def align_images(
     registered_dir: Path | str = Path("imagesIR_registered"),
@@ -38,8 +40,8 @@ def align_images(
             skip_count += 1
             continue
 
-        ir_img = cv2.imread(str(ir_file))
-        vis_img = cv2.imread(str(vis_file))
+        ir_img = read_image(ir_file)
+        vis_img = read_image(vis_file)
 
         if ir_img is None:
             print(f"[{index}/{len(file_list)}] 无法读取红外图像: {file_name}, 跳过")
@@ -58,9 +60,12 @@ def align_images(
             interpolation=cv2.INTER_LINEAR,
         )
 
-        cv2.imwrite(str(output_file), aligned_img)
-        success_count += 1
-        print(f"[{index}/{len(file_list)}] 已处理: {file_name} -> 尺寸: {width}x{height}")
+        if write_image(output_file, aligned_img):
+            success_count += 1
+            print(f"[{index}/{len(file_list)}] 已处理: {file_name} -> 尺寸: {width}x{height}")
+        else:
+            skip_count += 1
+            print(f"[{index}/{len(file_list)}] 输出失败: {file_name}, 跳过")
 
     print("=" * 50)
     print("对齐完成!")

@@ -275,6 +275,10 @@ class ImageRegistrationWindow(QMainWindow):
         self.auto_optimize_btn = QPushButton("一键自动优化")
         self.auto_optimize_btn.clicked.connect(self.auto_optimize_current_image)
         self.auto_optimize_btn.setEnabled(False)
+
+        self.batch_optimize_btn = QPushButton("批量自动优化")
+        self.batch_optimize_btn.clicked.connect(self.batch_auto_optimize)
+        self.batch_optimize_btn.setEnabled(False)
         
         self.export_btn = QPushButton("批量导出")
         self.export_btn.clicked.connect(self.export_images)
@@ -292,9 +296,10 @@ class ImageRegistrationWindow(QMainWindow):
         nav_layout.addWidget(self.next_btn, 0, 1)
         nav_layout.addWidget(self.save_btn, 1, 0, 1, 2)
         nav_layout.addWidget(self.auto_optimize_btn, 2, 0, 1, 2)
-        nav_layout.addWidget(self.export_btn, 3, 0, 1, 2)
-        nav_layout.addWidget(self.clear_current_btn, 4, 0)
-        nav_layout.addWidget(self.clear_all_btn, 4, 1)
+        nav_layout.addWidget(self.batch_optimize_btn, 3, 0, 1, 2)
+        nav_layout.addWidget(self.export_btn, 4, 0, 1, 2)
+        nav_layout.addWidget(self.clear_current_btn, 5, 0)
+        nav_layout.addWidget(self.clear_all_btn, 5, 1)
         
         nav_group.setLayout(nav_layout)
         layout.addWidget(nav_group)
@@ -408,6 +413,7 @@ class ImageRegistrationWindow(QMainWindow):
 
 <b>自动优化:</b>
 • 一键自动优化当前图像的 dx / dy / scale_x / scale_y
+• 批量自动优化会对整个目录逐张拟合并保存参数
 • 自动优化会保持当前旋转角度不变
 
 <b>模式说明:</b>

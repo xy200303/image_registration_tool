@@ -28,6 +28,7 @@ env/
 
 # PyInstaller
 *.spec
+!packaging/image_registration_tool.spec
 build/
 dist/
 *.log
@@ -43,8 +44,11 @@ dist/
 # Image data (large files, should not be in git)
 images/
 imagesIR/
+imagesIR_registered/
+images_aligned/
 test/
 results/
+outputs/
 *.png
 *.jpg
 *.jpeg

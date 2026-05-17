@@ -1,139 +1,102 @@
-# 图像配准工具 - 使用说明
+# 图像配准工具
 
-## 项目概述
-<img width="1500" height="929" alt="image" src="https://github.com/user-attachments/assets/3fcc974f-7e4d-4152-a92d-fe18eedbd2c5" />
-<img width="1919" height="1019" alt="image" src="https://github.com/user-attachments/assets/e7bd1275-e829-465e-8e0b-a3e66f342dce" />
+一个更正式整理后的 Python 项目，用于红外图像与可见光图像的手动配准、批量导出和数据集辅助处理。
 
-这是一个基于 PyQt6 的图像配准工具，用于红外图像和可见光图像的手动配准和批量处理。
+## 项目特性
 
-## 技术栈
+- PyQt6 图形界面，支持人工调节红外/可见光图像配准
+- 支持当前图像一键自动优化 `dx / dy / scale_x / scale_y`
+- 内置统一 CLI，可运行配准、尺寸对齐和数据集拆分
+- 使用 `src/` 包结构，便于维护、安装和后续扩展
 
-- **GUI框架**: PyQt6
-- **图像处理**: OpenCV (cv2)
-- **数值计算**: NumPy
-- **数据存储**: JSON
-- **文件操作**: pathlib
+## 项目结构
 
-## 安装依赖
+```text
+.
+├── src/
+│   └── image_registration_tool/
+│       ├── gui.py                  # 主 GUI
+│       ├── cli.py                  # 统一命令行入口
+│       └── tools/
+│           ├── align.py            # 可见光图像尺寸对齐
+│           ├── manual_registration.py
+│           └── split_data.py
+├── scripts/                        # Windows 辅助脚本
+├── docs/                           # 项目文档
+├── packaging/                      # 打包配置
+├── image_registration_tool.py      # 源码启动入口
+├── pyproject.toml                  # 项目元数据
+└── requirements.txt                # 依赖锁定
+```
+
+## 安装
+
+### 方式一：直接安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 运行程序
+### 方式二：按项目方式安装
+
+```bash
+pip install -e .
+```
+
+## 运行方式
+
+### 启动主 GUI
+
+兼容方式：
 
 ```bash
 python image_registration_tool.py
 ```
 
-## 功能特性
+运行其他子命令：
 
-### 1. 图像加载
-
-- **加载红外目录**: 选择包含红外图像的目录（支持多级目录结构）
-- **加载可见光目录**: 选择包含可见光图像的目录（支持多级目录结构）
-- **加载结果目录**: 选择保存配准参数的目录
-
-支持的图像格式: `.png`, `.jpg`, `.jpeg`, `.bmp`
-
-### 2. 模式选择
-
-- **Global 模式**: 使用全局参数，适用于批量处理
-- **Manual 模式**: 手动调整每张图像的参数
-
-### 3. 图像导航
-
-- **上一张**: 切换到上一张图像
-- **下一张**: 切换到下一张图像
-- **保存参数**: 保存当前图像的配准参数到 JSON 文件
-
-### 4. 参数调整
-
-#### 偏移量控制
-- **dx**: X方向偏移量（像素）
-- **dy**: Y方向偏移量（像素）
-
-#### 缩放控制
-- **ScaleX**: X方向缩放比例（0.5x - 2.0x）
-- **ScaleY**: Y方向缩放比例（0.5x - 2.0x）
-
-#### 混合比例
-- **Alpha**: 混合比例（0.0 - 1.0）
-  - 0.0: 只显示可见光图像
-  - 1.0: 只显示红外图像
-  - 0.5: 等比例混合显示
-
-### 5. 键盘快捷键
-
-#### Manual 模式下的快捷键
-- **方向键 ← → ↑ ↓**: 移动红外图像
-- **W**: 水平放大
-- **E**: 水平缩小
-- **A**: 垂直缩小
-- **D**: 垂直放大
-
-#### 通用快捷键
-- **+ / =**: 增加混合比例
-- **-**: 减少混合比例
-- **S**: 保存当前参数
-- **Q / ESC**: 退出程序
-
-### 6. 鼠标控制
-
-- **拖拽**: 在图像区域点击并拖拽可以移动红外图像
-
-### 7. 参数保存
-
-参数以 JSON 格式保存，文件名为图像文件名 + `.json` 扩展名。
-
-JSON 格式示例:
-```json
-{
-  "dx": 10,
-  "dy": -5,
-  "scale_x": 1.05,
-  "scale_y": 0.98
-}
+```bash
+python image_registration_tool.py align
+python image_registration_tool.py manual
+python image_registration_tool.py split-data
 ```
 
-## 使用流程
+安装后推荐方式：
 
-1. **加载图像目录**
-   - 点击"加载红外目录"按钮，选择红外图像目录
-   - 点击"加载可见光目录"按钮，选择可见光图像目录
-
-2. **设置结果目录**
-   - 点击"加载结果目录"按钮，选择保存参数的目录
-
-3. **调整配准参数**
-   - 使用偏移量、缩放控件调整图像配准
-   - 使用混合比例滑块调整显示效果
-   - 使用键盘快捷键或鼠标拖拽进行快速调整
-
-4. **保存参数**
-   - 点击"保存参数"按钮或按 S 键保存当前参数
-   - 切换图像时可以加载之前保存的参数
-
-5. **批量处理**
-   - 使用"上一张"/"下一张"按钮浏览所有图像
-   - 为每张图像调整参数并保存
-
-## 项目结构
-
+```bash
+image-registration-tool gui
+image-registration-tool align
+image-registration-tool manual
+image-registration-tool split-data
 ```
-JZ_data/
-├── image_registration_tool.py    # 主程序文件
-├── manual_registration.py         # 原始 OpenCV 版本
-├── requirements.txt              # 依赖包列表
-├── images/                       # 可见光图像目录
-├── imagesIR/                     # 红外图像目录
-└── results/                      # 参数保存目录（需创建）
-```
+
+### GUI 自动优化
+
+在主界面中点击 `一键自动优化` 按钮后，程序会：
+
+- 以当前参数作为初始值
+- 使用 ECC 生成初始估计
+- 基于 SciPy 对 `dx / dy / scale_x / scale_y` 继续精修
+- 自动刷新预览并将结果写入 `results/` 参数文件
+
+## 默认目录约定
+
+默认使用当前工作目录下的这些目录：
+
+- `images/`：可见光图像
+- `imagesIR/`：红外图像
+- `results/`：GUI 保存的配准参数
+- `imagesIR_registered/`：手动配准后的红外图像
+- `images_aligned/`：按红外尺寸对齐后的可见光图像
+- `outputs/`：数据集拆分输出目录
+
+## 开发与打包
+
+- 打包说明见 [docs/BUILD_README.md](docs/BUILD_README.md)
+- 项目结构清单见 [docs/FILE_MANIFEST.md](docs/FILE_MANIFEST.md)
 
 ## 注意事项
 
-1. 红外图像和可见光图像应具有相同的文件名
-2. 支持多级目录结构，程序会自动匹配相同相对路径的图像
-3. 参数文件会保存在结果目录中，与图像文件同名（扩展名为 .json）
-4. 在 Global 模式下，键盘快捷键只支持混合比例调整和退出
-5. 在 Manual 模式下，可以使用所有键盘快捷键进行参数调整
+- 红外图像和可见光图像默认按同名文件匹配
+- 当前 GUI 仍以手动配准为核心，未引入自动配准算法
+- 如果直接通过源码运行，建议在项目根目录执行命令，以保持默认路径一致

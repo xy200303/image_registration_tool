@@ -1,5 +1,7 @@
 @echo off
 chcp 65001 >nul
+set SCRIPT_DIR=%~dp0
+pushd "%SCRIPT_DIR%\.."
 echo ========================================
 echo Image Registration Tool - Clean Script
 echo ========================================
@@ -26,3 +28,4 @@ echo Clean completed!
 echo ========================================
 echo.
 pause
+popd

@@ -1,5 +1,7 @@
 @echo off
 chcp 65001 >nul
+set SCRIPT_DIR=%~dp0
+pushd "%SCRIPT_DIR%\.."
 echo ========================================
 echo Image Registration Tool - Build Script
 echo ========================================
@@ -19,7 +21,7 @@ if exist dist rmdir /s /q dist
 
 echo.
 echo [4/4] Building executable...
-pyinstaller image_registration_tool.spec --noconfirm
+pyinstaller packaging\image_registration_tool.spec --noconfirm
 
 if %ERRORLEVEL% EQU 0 (
     echo.
@@ -44,3 +46,4 @@ if %ERRORLEVEL% EQU 0 (
 )
 
 pause
+popd
